@@ -1,194 +1,205 @@
-# FoodSnap AI - Hackathon Project
+# FoodSnap AI
 
-🎉 **Welcome to the FoodSnap AI Hackathon!** 🎉
+A web application that identifies food from images and provides nutritional information using AI and USDA data.
 
-Get ready to combine your coding skills with the fascinating world of artificial intelligence and nutrition! We're excited to see what innovative solutions you come up with.
+## Features
 
-**The Challenge:**
-Your mission, should you choose to accept it, is to develop a solution that can estimate the caloric content (and ideally, macronutrient breakdown – protein, carbs, fats) of a food item from an input image.
+- 📸 **Image Upload**: Upload food images for instant analysis
+- 🤖 **AI Recognition**: Uses ResNet50 for food classification
+- 🥗 **Nutrition Analysis**: Provides calories, protein, carbs, and fat data
+- 📊 **USDA Integration**: Real nutrition data from USDA FoodData Central API
+- 🎨 **Modern UI**: Clean, responsive interface built with React and Tailwind CSS
 
-## Table of Contents
+## Tech Stack
 
-1.  [Project Overview](#project-overview)
-2.  [Why This Project?](#why-this-project)
-3.  [Scope & Implementation Freedom](#project-scope--implementation-freedom)
-4.  [Key Objectives / Potential Features](#key-objectives--potential-features)
-5.  [Helpful Resources & APIs](#helpful-resources--apis)
-    *   [Food Image Datasets](#food-image-datasets)
-    *   [Nutrition Information Databases & APIs](#nutrition-information-databases--apis)
-    *   [Machine Learning / AI Tools](#machine-learning--ai-tools)
-6.  [Getting Started: Git & Submission Workflow](#getting-started-git--submission-workflow)
-    *   [1. Fork the Repository](#1-fork-the-repository)
-    *   [2. Clone Your Forked Repository](#2-clone-your-forked-repository)
-    *   [3. Create a New Branch](#3-create-a-new-branch)
-    *   [4. Develop Your Project](#4-develop-your-project)
-    *   [5. Push Your Branch to Your Fork](#5-push-your-branch-to-your-fork)
-    *   [6. Submit Your Project (Create a Pull Request)](#6-submit-your-project-create-a-pull-request)
-7.  [What to Include in Your Submission](#what-to-include-in-your-submission)
-8.  [Judging Criteria (General Pointers)](#judging-criteria-general-pointers)
+### Frontend
+- React 18 with Vite
+- Tailwind CSS for styling
+- Axios for API calls
 
+### Backend
+- Python with FastAPI
+- PyTorch for ML model
+- Pillow for image processing
+- USDA FoodData Central API integration
+
+### AI/ML
+- ResNet50 pretrained model
+- Image classification and preprocessing
+
+## Prerequisites
+
+- Node.js 16+ and npm
+- Python 3.8+
+- USDA FoodData Central API Key (optional, falls back to mock data)
+
+## Setup Instructions
+
+### 1. Clone the Repository
+
+```bash
+git clone <repository-url>
+cd foodsnap-ai
+```
+
+### 2. Backend Setup
+
+```bash
+# Navigate to backend directory
+cd backend
+
+# Create virtual environment
+python -m venv venv
+
+# Activate virtual environment
+# On Windows:
+venv\Scripts\activate
+# On macOS/Linux:
+source venv/bin/activate
+
+# Install dependencies
+pip install -r requirements.txt
+
+# Set up environment variables
+cp .env.example .env
+# Edit .env and add your USDA API key
+```
+
+### 3. Frontend Setup
+
+```bash
+# Navigate to frontend directory (from project root)
+cd frontend
+
+# Install dependencies
+npm install
+```
+
+## Running the Application
+
+### Start the Backend
+
+```bash
+# From backend directory
+python main.py
+```
+
+The backend will start on `http://localhost:8000`
+
+### Start the Frontend
+
+```bash
+# From frontend directory (in a new terminal)
+npm run dev
+```
+
+The frontend will start on `http://localhost:3000`
+
+## Usage
+
+1. Open `http://localhost:3000` in your browser
+2. Click "Click to upload or drag and drop" to select a food image
+3. The AI will analyze the image and identify the food
+4. View the nutritional information for a 100g portion
+5. Click "Analyze Another Food" to process more images
+
+## API Endpoints
+
+### Backend Endpoints
+
+- `GET /` - API status
+- `GET /health` - Health check
+- `POST /analyze-food` - Analyze food image
+  - Body: `multipart/form-data` with `file` field
+  - Returns: Food name and nutrition data
+
+## Environment Variables
+
+### Backend (.env)
+
+```env
+# USDA FoodData Central API Key (get from https://fdc.nal.usda.gov/api-key-signup.html)
+USDA_API_KEY=your_usda_api_key_here
+
+# Server Configuration
+HOST=0.0.0.0
+PORT=8000
+```
+
+## Project Structure
+
+```
+foodsnap-ai/
+├── backend/
+│   ├── main.py              # FastAPI application
+│   ├── requirements.txt     # Python dependencies
+│   └── .env.example        # Environment variables template
+├── frontend/
+│   ├── src/
+│   │   ├── components/
+│   │   │   ├── ImageUpload.jsx
+│   │   │   └── NutritionResults.jsx
+│   │   ├── App.jsx
+│   │   ├── main.jsx
+│   │   └── index.css
+│   ├── package.json
+│   ├── vite.config.js
+│   └── tailwind.config.js
+└── README.md
+```
+
+## How It Works
+
+1. **Image Upload**: User uploads a food image via the React frontend
+2. **Image Processing**: Backend receives and preprocesses the image
+3. **AI Classification**: ResNet50 model identifies the food type
+4. **Nutrition Lookup**: USDA API provides nutritional data for the identified food
+5. **Results Display**: Frontend shows the food name and nutrition information
+
+## Limitations (MVP)
+
+- Single food item analysis only
+- Fixed portion size (100g)
+- Limited to 30 common food items
+- Mock data fallback when USDA API is unavailable
+- Basic image classification (not specialized for food)
+
+## Getting USDA API Key
+
+1. Visit [USDA FoodData Central](https://fdc.nal.usda.gov/api-key-signup.html)
+2. Sign up for a free API key
+3. Add the key to your `.env` file in the backend directory
+
+## Troubleshooting
+
+### Common Issues
+
+1. **Backend won't start**: Ensure Python 3.8+ and all requirements are installed
+2. **Frontend build errors**: Make sure Node.js 16+ is installed
+3. **CORS errors**: Check that backend is running on port 8000
+4. **API timeouts**: Large images may timeout; try smaller files (<5MB)
+5. **Model loading issues**: First run may download PyTorch models (requires internet)
+
+### Debug Mode
+
+For debugging, you can check:
+- Backend logs in terminal
+- Browser console for frontend errors
+- Network tab for API requests
+
+## Future Enhancements
+
+- Multiple food item recognition
+- Custom portion size input
+- User meal history
+- More sophisticated food classification
+- Mobile app support
+- Database integration
+
+## License
+
+This project is for educational purposes. Please ensure compliance with USDA API terms of service.
 
 ---
 
-## Project Overview
-
-**Project Name:** FoodSnap AI
-
-**The Challenge:**
-Develop a solution that can estimate the caloric content (and ideally, macronutrient breakdown – protein, carbs, fats) of a food item from an input image.
-
-## Why This Project?
-
-Understanding calorie intake is crucial for health and fitness. Manually logging food can be tedious. FoodSnap AI aims to simplify this process, making nutritional awareness more accessible to everyone. Imagine snapping a photo of your meal and instantly getting its nutritional information!
-
-## Project Scope & Implementation Freedom
-
-You have complete freedom in how you bring FoodSnap AI to life!
-
-*   **Platform:** Mobile App (iOS, Android, cross-platform), Web App, Website, or even a Command Line Interface (CLI) tool.
-*   **Technology Stack:** Use any programming languages, frameworks, libraries, or APIs you prefer. Python, JavaScript, Java, Swift, Kotlin, Ruby, Go – the choice is yours!
-*   **Approach:** You can use pre-trained machine learning models, train your own, leverage existing food recognition APIs, or come up with a completely novel approach.
-
-## Key Objectives / Potential Features
-
-1.  **Image Input:** The system must accept an image of food as input.
-2.  **Food Identification (Implicit or Explicit):** The system needs to identify the food item(s) in the image. This could be a direct output or an internal step.
-3.  **Calorie Estimation:** Based on the identified food, estimate its total calories.
-4.  **Macronutrient Breakdown (Bonus):** If possible, also estimate protein, carbohydrates, and fats.
-5.  **Portion Size Consideration (Advanced Bonus):** Accurately estimating portion size from an image is challenging but would be a significant enhancement.
-6.  **User Interface (for non-CLI):** If you're building an app or website, make it user-friendly and intuitive.
-7.  **Multiple Food Items (Advanced Bonus):** Can your solution handle an image with multiple food items on a plate?
-
-## Helpful Resources & APIs
-
-To get you started, here are some resources that might be useful. You are **not limited** to these and are encouraged to explore!
-
-### Food Image Datasets
-*(For training/inspiration if you go the custom ML route)*
-
-*   **Food-101:** [https://data.vision.ee.ethz.ch/cvl/datasets_extra/food-101/](https://data.vision.ee.ethz.ch/cvl/datasets_extra/food-101/) (101 food categories, 101,000 images)
-*   **UECFood-100 / UECFood-256:** [http://foodcam.mobi/dataset.html](http://foodcam.mobi/dataset.html) (Japanese food primarily, good for object detection)
-*   **Recipe1M+:** [http://pic2recipe.csail.mit.edu/](http://pic2recipe.csail.mit.edu/) (Images and recipes)
-*   **Google Images / Flickr:** Can be used for scraping specific food images (be mindful of terms of service).
-
-### Nutrition Information Databases & APIs
-*(For calorie/macro lookup)*
-
-*   **USDA FoodData Central API:** [https://fdc.nal.usda.gov/api-guide.html](https://fdc.nal.usda.gov/api-guide.html) (Comprehensive US food composition database)
-*   **Edamam Food Database API:** [https://developer.edamam.com/food-database-api](https://developer.edamam.com/food-database-api) (Offers free tier for recipe analysis and food database lookup)
-*   **Spoonacular API:** [https://spoonacular.com/food-api](https://spoonacular.com/food-api) (Nutrition, recipes, food products, free tier available)
-*   **MyFitnessPal / CalorieKing / FatSecret:** While direct API access might be limited or paid, these websites are excellent sources for manual data collection or understanding how nutritional information is presented. Web scraping *could* be an option, but always respect `robots.txt` and terms of service.
-*   **Open Food Facts:** [https://world.openfoodfacts.org/](https://world.openfoodfacts.org/) (A collaborative, free, and open database of food products from around the world. They have an API.)
-
-### Machine Learning / AI Tools
-
-*   **TensorFlow / Keras:** For building and training custom models.
-*   **PyTorch:** Another popular deep learning framework.
-*   **OpenCV:** For image processing tasks.
-*   **Pre-trained Image Recognition Models:** (e.g., MobileNet, ResNet, InceptionV3 available via TensorFlow Hub, PyTorch Hub, etc.) These can often be fine-tuned for food recognition.
-*   **Cloud AI Services:** Google Cloud Vision AI, AWS Rekognition, Azure Computer Vision (these often have free tiers for experimentation and can perform object/food recognition out-of-the-box).
-
-## Getting Started: Git & Submission Workflow
-
-We will be using GitHub for version control and submission. Please follow these steps carefully.
-
-**This Repository (Main Project):** `https://github.com/WeCode-Community-Dev/foodsnap-ai`
-
-### 1. Fork the Repository
-*   Go to the main project repository: `https://github.com/WeCode-Community-Dev/foodsnap-ai`
-*   In the top-right corner of the page, click the "**Fork**" button.
-*   This will create a copy of the repository under your own GitHub account (e.g., `https://github.com/YOUR_USERNAME/foodsnap-ai`). This is *your* personal remote copy.
-
-### 2. Clone Your Forked Repository
-*   On your GitHub page for *your forked repository* (`https://github.com/YOUR_USERNAME/foodsnap-ai`), click the green "**Code**" button.
-*   Copy the HTTPS or SSH URL.
-*   Open your terminal or Git client and run:
-    ```bash
-    git clone https://github.com/YOUR_USERNAME/foodsnap-ai.git
-    cd foodsnap-ai
-    ```
-    (Replace `YOUR_USERNAME` with your actual GitHub username.)
-
-### 3. Create a New Branch
-*   It's crucial to work on a new branch rather than directly on `main` or `master`.
-*   Choose a descriptive branch name, for example, `feature/your-team-name` or `solution-john-doe`.
-*   In your terminal, inside the `foodsnap-ai` directory, run:
-    ```bash
-    git checkout -b feature/your-team-name
-    ```
-    (e.g., `git checkout -b feature/awesome-coders` or `git checkout -b solution-jane-doe`)
-*   You are now on your new branch. Verify by running `git branch`.
-
-### 4. Develop Your Project
-*   Start coding! Add your files, write your logic, and build your FoodSnap AI solution.
-*   Commit your changes frequently with clear commit messages:
-    ```bash
-    # Stage all new and modified files
-    git add .
-    # Or stage specific files
-    # git add path/to/your/file.py path/to/another/file.js
-
-    # Commit your changes
-    git commit -m "feat: Implement image upload functionality"
-    # Example commit types: feat, fix, docs, style, refactor, test, chore
-    ```
-
-### 5. Push Your Branch to Your Fork
-*   When you're ready to save your progress to *your remote fork on GitHub*, push your branch:
-    ```bash
-    git push origin feature/your-team-name
-    ```
-    (Replace `feature/your-team-name` with your actual branch name.)
-*   If it's the first time pushing this branch, Git might suggest a command like `git push --set-upstream origin feature/your-team-name`. Use that command.
-
-### 6. Submit Your Project (Create a Pull Request)
-*   Once your project is complete (or at a submittable stage), go to *your* forked repository on GitHub (`https://github.com/YOUR_USERNAME/foodsnap-ai`).
-*   You should see a prompt saying "`feature/your-team-name` had recent pushes". Click the "**Compare & pull request**" button.
-*   If you don't see the prompt, go to the "**Pull requests**" tab and click "**New pull request**".
-*   **Crucially, ensure the settings are:**
-    *   **Base repository:** `WeCode-Community-Dev/foodsnap-ai`
-    *   **Base branch:** `main` (or `master`, whichever is the default for this repository)
-    *   **Head repository:** `YOUR_USERNAME/foodsnap-ai`
-    *   **Compare branch:** `feature/your-team-name` (your development branch)
-*   Write a clear title and a detailed description for your Pull Request (PR). Include:
-    *   A brief overview of your solution.
-    *   Technologies used.
-    *   How to run/test your project (setup, commands, etc.).
-    *   Any known issues or limitations.
-    *   A link to a live demo if applicable (e.g., Heroku, Netlify, GitHub Pages).
-    *   Screenshots or a short video showcasing your project can be very helpful!
-*   Click "**Create pull request**".
-
-## What to Include in Your Submission
-*(In your project's directory, pushed to your branch and included in the PR)*
-
-*   **Source Code:** All the code for your project.
-*   **`README.md` (Your Project's README):** This is very important! Your project's `README.md` (different from this main hackathon `README.md`) should include:
-    *   Project Title & Team Name/Members (if applicable).
-    *   A brief description of your FoodSnap AI solution.
-    *   What features you implemented.
-    *   Tech stack used.
-    *   **Clear instructions on how to set up and run *your specific project* locally.** This includes dependencies, environment variables, build steps, and run commands.
-    *   Any API keys or environment variables needed (explain how to get them, but **DO NOT COMMIT ACTUAL KEYS** to the repository). Use a `.env.example` file to show what's needed.
-    *   Link to a live demo (if any).
-*   **(Optional but Recommended)** A short demo video or presentation slides (you can link these in your PR description or in your project's README).
-
-## Judging Criteria (General Pointers)
-
-While specific criteria might be announced, generally projects are evaluated on:
-
-*   **Functionality:** Does it work as intended? Does it achieve the core goal of calorie estimation from an image?
-*   **Accuracy:** How close are the calorie/macro estimations? (We understand this is complex!)
-*   **Innovation & Creativity:** Did you come up with a unique approach or an interesting feature?
-*   **Technical Implementation:** Quality of code, choice of technology, and complexity handled.
-*   **User Experience (UX/UI):** If applicable, is the application easy and pleasant to use?
-*   **Presentation/Demo:** How well you explain and showcase your project.
-*   **Adherence to Submission Guidelines:** Including a good project `README.md` and following the Git workflow.
-
-
----
-
-Good luck, innovators! We can't wait to see your FoodSnap AI creations. Remember to have fun, learn, and collaborate!
-
-**Happy Hacking!**
-The WeCode Community Dev Team
+**Note**: This is an MVP version. Nutrition values are estimates and should not be used for medical dietary planning.
