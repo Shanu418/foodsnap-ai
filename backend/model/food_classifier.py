@@ -14,8 +14,9 @@ from torchvision import transforms, models
 from PIL import Image
 import json
 import os
-from typing import Tuple, Dict, Any
+from typing import Tuple, Dict, Any, List
 import logging
+import time
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -189,21 +190,27 @@ class FoodClassifier:
         food_class_index = imagenet_class_id % len(self.food_101_classes)
         return self.food_101_classes[food_class_index]
     
-    def predict(self, image: Image.Image) -> Dict[str, Any]:
+    def predict(self, image: Image.Image, confidence_threshold: float = 0.4, top_k: int = 3) -> Dict[str, Any]:
         """
-        Predict food class from image.
+        Predict food class from image with enhanced features.
         
         Args:
             image: PIL Image to classify
+            confidence_threshold: Minimum confidence to accept prediction (default: 0.4)
+            top_k: Number of top predictions to return (default: 3)
             
         Returns:
             Dictionary containing:
-            - predicted_class: Predicted food class name
+            - food: Predicted food class name or "Unknown Food"
             - confidence: Confidence score (0-1)
-            - model_name: Name of the model used
-            - device: Device used for inference
+            - alternatives: List of alternative predictions
+            - inference_time_ms: Inference time in milliseconds
+            - model_info: Model metadata
         """
         try:
+            # Start timing
+            start_time = time.time()
+            
             # Preprocess image
             input_tensor = self._preprocess_image(image)
             
@@ -212,29 +219,69 @@ class FoodClassifier:
                 outputs = self.model(input_tensor)
                 probabilities = F.softmax(outputs, dim=1)
                 
-                # Get top prediction
-                top_prob, top_class_id = torch.topk(probabilities, 1)
+                # Get top-k predictions
+                top_probs, top_class_ids = torch.topk(probabilities, top_k)
                 
                 # Convert to Python types
-                confidence = top_prob.cpu().numpy()[0][0]
-                imagenet_class_id = top_class_id.cpu().numpy()[0][0]
+                top_probs = top_probs.cpu().numpy()[0]
+                top_class_ids = top_class_ids.cpu().numpy()[0]
                 
-                # Map to Food-101 class
-                predicted_class = self._map_imagenet_to_food101(imagenet_class_id)
+                # Get top prediction
+                top_confidence = top_probs[0]
+                top_imagenet_id = top_class_ids[0]
                 
-                # Format class name (replace underscores with spaces, capitalize)
-                formatted_class = predicted_class.replace('_', ' ').title()
+                # Map to Food-101 classes
+                top_food101_class = self._map_imagenet_to_food101(top_imagenet_id)
+                top_food_class = top_food101_class.replace('_', ' ').title()
+                
+                # Generate alternatives (top 2-3 predictions)
+                alternatives = []
+                for i in range(1, min(top_k, len(top_probs))):
+                    alt_confidence = top_probs[i]
+                    alt_imagenet_id = top_class_ids[i]
+                    alt_food101_class = self._map_imagenet_to_food101(alt_imagenet_id)
+                    alt_food_class = alt_food101_class.replace('_', ' ').title()
+                    
+                    alternatives.append({
+                        'food': alt_food_class,
+                        'confidence': float(alt_confidence)
+                    })
+                
+                # Apply confidence threshold
+                if top_confidence < confidence_threshold:
+                    final_food = "Unknown Food"
+                    final_confidence = float(top_confidence)
+                    logger.info(f"Low confidence ({top_confidence:.3f} < {confidence_threshold}) - classified as Unknown Food")
+                else:
+                    final_food = top_food_class
+                    final_confidence = float(top_confidence)
+                    logger.info(f"Prediction: {final_food} (confidence: {final_confidence:.3f})")
+                
+                # Calculate inference time
+                inference_time = (time.time() - start_time) * 1000  # Convert to milliseconds
                 
                 result = {
-                    'predicted_class': formatted_class,
-                    'confidence': float(confidence),
-                    'model_name': self.model_name,
-                    'device': self.device,
-                    'imagenet_class_id': int(imagenet_class_id),
-                    'food101_class': predicted_class
+                    'food': final_food,
+                    'confidence': final_confidence,
+                    'alternatives': alternatives,
+                    'inference_time_ms': round(inference_time, 2),
+                    'threshold_met': top_confidence >= confidence_threshold,
+                    'model_info': {
+                        'model_name': self.model_name,
+                        'device': self.device,
+                        'top_k': top_k,
+                        'confidence_threshold': confidence_threshold
+                    },
+                    'raw_predictions': [
+                        {
+                            'food': self._map_imagenet_to_food101(cid).replace('_', ' ').title(),
+                            'confidence': float(prob)
+                        }
+                        for prob, cid in zip(top_probs, top_class_ids)
+                    ]
                 }
                 
-                logger.info(f"Prediction: {formatted_class} (confidence: {confidence:.3f})")
+                logger.info(f"Inference completed in {inference_time:.2f}ms")
                 return result
                 
         except Exception as e:

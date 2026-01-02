@@ -89,13 +89,13 @@ async def health_check():
 @app.post("/analyze-food")
 async def analyze_food(file: UploadFile = File(...)):
     """
-    Analyze food image and return classification results.
+    Analyze food image and return enhanced classification results.
     
     Args:
         file: Uploaded image file
         
     Returns:
-        dict: Food classification results with confidence score
+        dict: Enhanced food classification with top-3 predictions and alternatives
     """
     # Validate file type
     if not file.content_type.startswith('image/'):
@@ -106,7 +106,6 @@ async def analyze_food(file: UploadFile = File(...)):
     
     # Validate file size (max 10MB)
     max_size = 10 * 1024 * 1024  # 10MB
-    file_size = 0
     content = await file.read()
     file_size = len(content)
     
@@ -124,18 +123,25 @@ async def analyze_food(file: UploadFile = File(...)):
         if image.mode != 'RGB':
             image = image.convert('RGB')
         
-        # Run food classification
-        prediction_result = classifier.predict(image)
+        # Run enhanced food classification
+        prediction_result = classifier.predict(
+            image, 
+            confidence_threshold=0.4, 
+            top_k=3
+        )
         
-        # Return results
+        # Extract alternatives (food names only)
+        alternatives = [alt['food'] for alt in prediction_result['alternatives']]
+        
+        # Return enhanced results
         return JSONResponse(content={
             "success": True,
-            "food_name": prediction_result["predicted_class"],
+            "food": prediction_result["food"],
             "confidence": prediction_result["confidence"],
-            "model_info": {
-                "model_name": prediction_result["model_name"],
-                "device": prediction_result["device"]
-            },
+            "alternatives": alternatives,
+            "threshold_met": prediction_result["threshold_met"],
+            "inference_time_ms": prediction_result["inference_time_ms"],
+            "model_info": prediction_result["model_info"],
             "portion_size": "100g",  # Fixed portion size for MVP
             "nutrition": {
                 "calories": 150,  # Mock nutrition data for now
@@ -143,6 +149,12 @@ async def analyze_food(file: UploadFile = File(...)):
                 "carbs": 20.0,
                 "fat": 3.0,
                 "source": "mock_data"
+            },
+            "debug_info": {
+                "raw_predictions": prediction_result["raw_predictions"],
+                "file_size_mb": round(file_size / (1024*1024), 2),
+                "image_mode": image.mode,
+                "image_size": image.size
             }
         })
         
