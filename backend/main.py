@@ -14,6 +14,7 @@ from fastapi.responses import JSONResponse
 from dotenv import load_dotenv
 import os
 import io
+import logging
 from PIL import Image
 
 # Import food classifier and nutrition service
@@ -95,19 +96,19 @@ async def health_check():
 @app.post("/analyze-food")
 async def analyze_food(file: UploadFile = File(...)):
     """
-    Analyze food image and return enhanced classification with real nutrition data.
+    Analyze food image and return standardized classification with nutrition data.
     
     Args:
         file: Uploaded image file
         
     Returns:
-        dict: Enhanced food classification with USDA nutrition information
+        dict: Standardized food analysis response
     """
     # Validate file type
     if not file.content_type.startswith('image/'):
         raise HTTPException(
             status_code=400, 
-            detail="File must be an image (JPG, PNG, etc.)"
+            detail="Invalid file type. Please upload an image file (JPG, PNG, etc.)"
         )
     
     # Validate file size (max 10MB)
@@ -117,8 +118,101 @@ async def analyze_food(file: UploadFile = File(...)):
     
     if file_size > max_size:
         raise HTTPException(
+            status_code=413,  # Payload Too Large
+            detail=f"File too large. Maximum size is 10MB. Current size: {file_size / (1024*1024):.2f}MB"
+        )
+    
+    if file_size == 0:
+        raise HTTPException(
             status_code=400,
-            detail=f"File size must be less than 10MB. Current size: {file_size / (1024*1024):.2f}MB"
+            detail="Empty file uploaded. Please select a valid image file."
+        )
+    
+    try:
+        # Open and process image
+        image = Image.open(io.BytesIO(content))
+        
+        # Convert to RGB if necessary
+        if image.mode != 'RGB':
+            image = image.convert('RGB')
+        
+        # Run enhanced food classification
+        prediction_result = classifier.predict(
+            image, 
+            confidence_threshold=0.4, 
+            top_k=3
+        )
+        
+        # Get real nutrition data from USDA API
+        food_name = prediction_result["food"]
+        if food_name != "Unknown Food":
+            nutrition_data = nutrition_service.get_nutrition_for_food(food_name)
+        else:
+            # For unknown foods, use generic mock data
+            nutrition_data = nutrition_service._get_mock_nutrition_data("Unknown Food")
+        
+        # Extract nutrition values
+        nutrition = nutrition_data["nutrition"]
+        
+        # Return standardized response format
+        return JSONResponse(content={
+            "food": food_name,
+            "confidence": round(prediction_result["confidence"], 2),
+            "calories": round(nutrition["calories"]),
+            "protein": round(nutrition["protein"], 1),
+            "carbs": round(nutrition["carbs"], 1),
+            "fat": round(nutrition["fat"], 1),
+            "unit": "per 100g"
+        })
+        
+    except HTTPException:
+        # Re-raise HTTP exceptions as-is
+        raise
+    except Image.UnidentifiedImageError:
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid image file. The uploaded file could not be processed as an image."
+        )
+    except Exception as e:
+        logger.error(f"Unexpected error during food analysis: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail="Internal server error occurred while processing the image. Please try again."
+        )
+
+@app.post("/analyze-food-debug")
+async def analyze_food_debug(file: UploadFile = File(...)):
+    """
+    Debug version of food analysis with detailed information.
+    
+    Args:
+        file: Uploaded image file
+        
+    Returns:
+        dict: Detailed food analysis with all metadata and debug info
+    """
+    # Validate file type
+    if not file.content_type.startswith('image/'):
+        raise HTTPException(
+            status_code=400, 
+            detail="Invalid file type. Please upload an image file (JPG, PNG, etc.)"
+        )
+    
+    # Validate file size (max 10MB)
+    max_size = 10 * 1024 * 1024  # 10MB
+    content = await file.read()
+    file_size = len(content)
+    
+    if file_size > max_size:
+        raise HTTPException(
+            status_code=413,  # Payload Too Large
+            detail=f"File too large. Maximum size is 10MB. Current size: {file_size / (1024*1024):.2f}MB"
+        )
+    
+    if file_size == 0:
+        raise HTTPException(
+            status_code=400,
+            detail="Empty file uploaded. Please select a valid image file."
         )
     
     try:
@@ -147,36 +241,57 @@ async def analyze_food(file: UploadFile = File(...)):
             # For unknown foods, use generic mock data
             nutrition_data = nutrition_service._get_mock_nutrition_data("Unknown Food")
         
-        # Return enhanced results with real nutrition data
+        # Extract nutrition values
+        nutrition = nutrition_data["nutrition"]
+        
+        # Return detailed debug response
         return JSONResponse(content={
-            "success": True,
-            "food": prediction_result["food"],
-            "confidence": prediction_result["confidence"],
-            "alternatives": alternatives,
-            "threshold_met": prediction_result["threshold_met"],
-            "inference_time_ms": prediction_result["inference_time_ms"],
-            "model_info": prediction_result["model_info"],
-            "nutrition": nutrition_data["nutrition"],
-            "nutrition_source": nutrition_data["source"],
-            "nutrition_metadata": {
-                "fdc_id": nutrition_data.get("fdc_id"),
-                "data_type": nutrition_data.get("data_type"),
-                "portion_size": nutrition_data["portion_size"],
-                "all_nutrients_count": nutrition_data.get("all_nutrients_count", 0)
-            },
-            "debug_info": {
+            # Standardized format
+            "food": food_name,
+            "confidence": round(prediction_result["confidence"], 2),
+            "calories": round(nutrition["calories"]),
+            "protein": round(nutrition["protein"], 1),
+            "carbs": round(nutrition["carbs"], 1),
+            "fat": round(nutrition["fat"], 1),
+            "unit": "per 100g",
+            
+            # Additional debug information
+            "debug": {
+                "alternatives": alternatives,
+                "threshold_met": prediction_result["threshold_met"],
+                "inference_time_ms": prediction_result["inference_time_ms"],
+                "model_info": prediction_result["model_info"],
                 "raw_predictions": prediction_result["raw_predictions"],
-                "file_size_mb": round(file_size / (1024*1024), 2),
-                "image_mode": image.mode,
-                "image_size": image.size,
-                "usda_api_available": nutrition_service.get_service_info()["api_available"]
+                "nutrition_source": nutrition_data["source"],
+                "nutrition_metadata": {
+                    "fdc_id": nutrition_data.get("fdc_id"),
+                    "data_type": nutrition_data.get("data_type"),
+                    "all_nutrients_count": nutrition_data.get("all_nutrients_count", 0)
+                },
+                "file_info": {
+                    "file_size_mb": round(file_size / (1024*1024), 2),
+                    "image_mode": image.mode,
+                    "image_size": image.size
+                },
+                "service_status": {
+                    "usda_api_available": nutrition_service.get_service_info()["api_available"]
+                }
             }
         })
         
-    except Exception as e:
+    except HTTPException:
+        # Re-raise HTTP exceptions as-is
+        raise
+    except Image.UnidentifiedImageError:
         raise HTTPException(
-            status_code=500, 
-            detail=f"Error processing image: {str(e)}"
+            status_code=400,
+            detail="Invalid image file. The uploaded file could not be processed as an image."
+        )
+    except Exception as e:
+        logger.error(f"Unexpected error during food analysis debug: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail="Internal server error occurred while processing the image. Please try again."
         )
 
 # Import and include routers (will be added as we implement features)

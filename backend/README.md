@@ -77,10 +77,70 @@ uvicorn main:app --host 0.0.0.0 --port 8000 --reload
 - `GET /` - Basic health check with API info
 - `GET /health` - Detailed health check with service status
 
-### Documentation
+### Food Analysis
 
-- `GET /docs` - Swagger UI (interactive API docs)
-- `GET /redoc` - ReDoc (alternative API documentation)
+#### `POST /analyze-food` - Standardized Food Analysis
+**Main production endpoint with clean response format**
+
+**Request:** `multipart/form-data` with `file` field
+
+**Response:**
+```json
+{
+  "food": "pizza",
+  "confidence": 0.87,
+  "calories": 266,
+  "protein": 11,
+  "carbs": 33,
+  "fat": 10,
+  "unit": "per 100g"
+}
+```
+
+#### `POST /analyze-food-debug` - Detailed Food Analysis
+**Debug endpoint with full metadata and alternatives**
+
+**Request:** `multipart/form-data` with `file` field
+
+**Response:**
+```json
+{
+  "food": "pizza",
+  "confidence": 0.87,
+  "calories": 266,
+  "protein": 11,
+  "carbs": 33,
+  "fat": 10,
+  "unit": "per 100g",
+  "debug": {
+    "alternatives": ["flatbread", "garlic bread"],
+    "threshold_met": true,
+    "inference_time_ms": 45.2,
+    "model_info": {...},
+    "nutrition_source": "usda_api",
+    "file_info": {...},
+    "service_status": {...}
+  }
+}
+```
+
+### Error Handling
+
+The API uses proper HTTP status codes:
+
+| Status Code | Description | Example |
+|------------|-------------|---------|
+| `200` | Success | Food analysis completed |
+| `400` | Bad Request | Invalid file type, empty file, invalid image |
+| `413` | Payload Too Large | File size exceeds 10MB limit |
+| `500` | Internal Server Error | Unexpected processing error |
+
+**Error Response Format:**
+```json
+{
+  "detail": "Invalid file type. Please upload an image file (JPG, PNG, etc.)"
+}
+```
 
 ## Configuration
 
