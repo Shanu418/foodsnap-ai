@@ -16,8 +16,9 @@ import os
 import io
 from PIL import Image
 
-# Import food classifier
+# Import food classifier and nutrition service
 from model.food_classifier import get_classifier
+from services.nutrition_service import get_nutrition_service
 
 # Load environment variables from .env file
 load_dotenv()
@@ -48,6 +49,9 @@ app.add_middleware(
 # Initialize food classifier (loaded once at startup)
 classifier = get_classifier(model_name="resnet50")
 
+# Initialize nutrition service
+nutrition_service = get_nutrition_service()
+
 @app.get("/")
 async def root():
     """
@@ -73,6 +77,7 @@ async def health_check():
         dict: Detailed health status including environment info
     """
     classifier_info = classifier.get_class_info()
+    nutrition_info = nutrition_service.get_service_info()
     
     return {
         "status": "healthy",
@@ -81,21 +86,22 @@ async def health_check():
         "services": {
             "database": "not_implemented",
             "ml_model": "implemented",
-            "nutrition_api": "not_implemented"
+            "nutrition_api": "implemented" if nutrition_info["api_available"] else "mock_only"
         },
-        "classifier": classifier_info
+        "classifier": classifier_info,
+        "nutrition_service": nutrition_info
     }
 
 @app.post("/analyze-food")
 async def analyze_food(file: UploadFile = File(...)):
     """
-    Analyze food image and return enhanced classification results.
+    Analyze food image and return enhanced classification with real nutrition data.
     
     Args:
         file: Uploaded image file
         
     Returns:
-        dict: Enhanced food classification with top-3 predictions and alternatives
+        dict: Enhanced food classification with USDA nutrition information
     """
     # Validate file type
     if not file.content_type.startswith('image/'):
@@ -133,7 +139,15 @@ async def analyze_food(file: UploadFile = File(...)):
         # Extract alternatives (food names only)
         alternatives = [alt['food'] for alt in prediction_result['alternatives']]
         
-        # Return enhanced results
+        # Get real nutrition data from USDA API
+        food_name = prediction_result["food"]
+        if food_name != "Unknown Food":
+            nutrition_data = nutrition_service.get_nutrition_for_food(food_name)
+        else:
+            # For unknown foods, use generic mock data
+            nutrition_data = nutrition_service._get_mock_nutrition_data("Unknown Food")
+        
+        # Return enhanced results with real nutrition data
         return JSONResponse(content={
             "success": True,
             "food": prediction_result["food"],
@@ -142,19 +156,20 @@ async def analyze_food(file: UploadFile = File(...)):
             "threshold_met": prediction_result["threshold_met"],
             "inference_time_ms": prediction_result["inference_time_ms"],
             "model_info": prediction_result["model_info"],
-            "portion_size": "100g",  # Fixed portion size for MVP
-            "nutrition": {
-                "calories": 150,  # Mock nutrition data for now
-                "protein": 5.0,
-                "carbs": 20.0,
-                "fat": 3.0,
-                "source": "mock_data"
+            "nutrition": nutrition_data["nutrition"],
+            "nutrition_source": nutrition_data["source"],
+            "nutrition_metadata": {
+                "fdc_id": nutrition_data.get("fdc_id"),
+                "data_type": nutrition_data.get("data_type"),
+                "portion_size": nutrition_data["portion_size"],
+                "all_nutrients_count": nutrition_data.get("all_nutrients_count", 0)
             },
             "debug_info": {
                 "raw_predictions": prediction_result["raw_predictions"],
                 "file_size_mb": round(file_size / (1024*1024), 2),
                 "image_mode": image.mode,
-                "image_size": image.size
+                "image_size": image.size,
+                "usda_api_available": nutrition_service.get_service_info()["api_available"]
             }
         })
         
